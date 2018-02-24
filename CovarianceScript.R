@@ -1,6 +1,6 @@
 
-getSampleCovariances <- function(averageReturnRatesRatio, returnRatesData) {
-	N <- ncol(averageReturnRatesRatio) # Number of securities
+getSampleCovariances <- function(averageReturnRatesData, returnRatesData) {
+	N <- ncol(averageReturnRatesData) # Number of securities
 	vector.of.pairs <- c() # which is a matrix 
 	# Agarrar los pares.
 	for(i in 1:N) {
@@ -9,7 +9,12 @@ getSampleCovariances <- function(averageReturnRatesRatio, returnRatesData) {
 				# Se obtuvo el par (i,j)
 				pair <- c(i,j)
 				vector.of.pairs <- cbind(vector.of.pairs, pair)
+				returnRates1 <- returnRatesData[[1+i]]
+				returnRates2 <- returnRatesData[[1+j]]
+				averageReturnRate1 <- averageReturnRatesData[[i]]
+				averageReturnRate1 <- averageReturnRatesData[[j]]
 			}
 		}
 	}
+
 } 
