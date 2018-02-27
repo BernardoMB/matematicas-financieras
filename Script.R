@@ -44,7 +44,7 @@ getSampleCovariance <- function(returnRates1, averageReturnRate1, returnRates2, 
   sum <- 0
   n <- length(returnRates1)
   for (i in 1:n){
-  sum <- sum + (returnRates1[i]-averageReturnRate1)*(returnRates2-averageReturnRate2)    
+  sum <- sum + (returnRates1[i]-averageReturnRate1)*(returnRates2[i]-averageReturnRate2)    
   }
   sum/n
 }
@@ -121,6 +121,58 @@ getStandardDeviationsData <- function(returnRatesData, averageReturnRatesData) {
   standardDeviations
 }
 
+getSampleCovariancesData <- function(averageReturnRatesData, returnRatesData) {
+  N <- ncol(averageReturnRatesData) # Number of securities
+  vector.of.pairs <- c() # which is a matrix
+  names <- c() # The names of the final data frame.
+  sampleCovariances <-c()
+  # Agarrar los pares.
+  for(i in 1:N) {
+    for (j in 1:N) {
+      if (j > i) {
+        # Se obtuvo el par (i,j)
+        pair <- c(i,j)
+        vector.of.pairs <- cbind(vector.of.pairs, pair)
+        returnRates1 <- returnRatesData[[1+i]]
+        returnRates2 <- returnRatesData[[1+j]]
+        averageReturnRate1 <- averageReturnRatesData[[i]]
+        averageReturnRate2 <- averageReturnRatesData[[j]]
+        sampleCovariance <- getSampleCovariance(returnRates1, averageReturnRate1, returnRates2, averageReturnRate2)
+        sampleCovariances <- cbind(sampleCovariances, sampleCovariance)
+        name <- paste(c("S.C.Security.",i,"-",j), collapse="")
+        names <- c(names, name)
+      }
+    }
+  }
+  sampleCovariances <- data.frame(sampleCovariances)
+  names(sampleCovariances) <- names
+  sampleCovariances
+}
+
+getSampleCorrelationCoeficientsData <- function(sampleCovariancesData, standardDeviationsData) {
+  N <- ncol(standardDeviationsData)
+  k <- 1
+  sampleCorrelationCoefficients <- c()
+  names <- c()
+  for (i in 1:N) {
+    for (j in 1:N) {
+      if (j > i) {
+        sampleCovariance <- sampleCovariancesData[[k]]
+        standardDeviation1 <- standardDeviationsData[[i]]
+        standardDeviation2 <- standardDeviationsData[[j]]
+        correlationCoefficient <- sampleCovariance/(standardDeviation1*standardDeviation2)
+        sampleCorrelationCoefficients <- cbind(sampleCorrelationCoefficients, correlationCoefficient)
+        name <- paste(c("S.C.C.Security.",i,"-",j), collapse="")
+        names <- c(names, name)
+        k <- k + 1
+      }
+    }
+  }
+  sampleCorrelationCoefficients <- data.frame(sampleCorrelationCoefficients)
+  names(sampleCorrelationCoefficients) <- names
+  sampleCorrelationCoefficients
+}
+
 data
 returnRatesData <- getReturnRatesData(data)
 returnRatesData
@@ -130,3 +182,38 @@ sampleVariancesData <- getSampleVariancesData(returnRatesData, averageReturnRate
 sampleVariancesData
 standardDeviationsData <- getStandardDeviationsData(returnRatesData, averageReturnRatesData)
 standardDeviationsData
+sampleCovariancesData <- getSampleCovariancesData(averageReturnRatesData, returnRatesData)
+sampleCovariancesData
+sampleCorrelationCoefficientsData <- getSampleCorrelationCoeficientsData(sampleCovariancesData, standardDeviationsData)
+sampleCorrelationCoefficientsData
+
+a <- averageReturnRatesData[[1]]-averageReturnRatesData[[2]]
+b <- averageReturnRatesData[[2]]
+
+c <- sampleVariancesData[[1]] + sampleVariancesData[[2]] + -2*standardDeviationsData[[1]]*standardDeviationsData[[2]]*sampleCorrelationCoefficientsData[[1]]
+d <- -2*sampleVariancesData[[2]] + 2*standardDeviationsData[[1]]*standardDeviationsData[[2]]*sampleCorrelationCoefficientsData[[1]]
+e <- sampleVariancesData[[2]]
+
+f <- -b/a
+g <- 1/a
+
+h <- c*g^2
+i <- c*2*f*g + d*g
+j <- c*f^2 + d*f + e
+
+library('ggplot2')
+
+# Plot the Markowitz parable for assets 1 and 2
+Sp.squared <- function(Rp) {
+  h*Rp^2 + i*Rp + j
+}
+ggplot(data.frame(x=c(-1, 1)), aes(x=x)) + stat_function(fun=Sp.squared, geom="line", color='green') + xlab("x") + ylab("y")
+
+# Plot the Markowitz curve for assets 1 and 2
+dat<- data.frame(t=seq(0, 1, by=0.01))
+Rp <- function(t) t*averageReturnRatesData[[1]] + (1-t)*averageReturnRatesData[[2]]
+Sp2 <- function(t) (t^2)*sampleVariancesData[[1]] + ((1-t)^2)*sampleVariancesData[[2]] + 2*t*(1-t)*sampleCovariancesData[[1]]
+Sp <- function(t) sqrt((t^2)*sampleVariancesData[[1]] + ((1-t)^2)*sampleVariancesData[[2]] + 2*t*(1-t)*standardDeviationsData[[1]]*standardDeviationsData[[2]]*sampleCorrelationCoefficientsData[[1]])
+dat$y=Rp(dat$t)
+dat$x=Sp(dat$t)
+with(dat, plot(x,y, type="l", col="green"))
